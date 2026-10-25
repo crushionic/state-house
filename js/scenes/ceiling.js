@@ -102,7 +102,13 @@ export class CeilingView {
       ), -0.003);
       voidMesh.visible = false;
 
-      const entry = { item, mesh, outline, voidMesh, glow: REST_GLOW, done: false };
+      // invisible disc so clicks anywhere on the element count (incl. the ring's hole)
+      const hitArea = faceDown(new THREE.Mesh(
+        new THREE.CircleGeometry(0.42, 32),
+        new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }),
+      ), -0.001);
+
+      const entry = { item, mesh, outline, voidMesh, hitArea, glow: REST_GLOW, done: false };
       // Invisible, keyboard-focusable trigger over each element.
       entry.button = el("button", {
         type: "button",
@@ -207,8 +213,8 @@ export class CeilingView {
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.app.camera);
     const live = this.items.filter((i) => !i.done);
-    const hits = ray.intersectObjects(live.flatMap((i) => [i.mesh, i.outline]), false);
-    return hits.length ? live.find((i) => i.mesh === hits[0].object || i.outline === hits[0].object) : null;
+    const hits = ray.intersectObjects(live.map((i) => i.hitArea), false);
+    return hits.length ? live.find((i) => i.hitArea === hits[0].object) : null;
   }
 
   update(dt = 0.016) {

@@ -18,17 +18,24 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 
 ## Experience flow
 
-1. **Intro:** an Enter button on a glowing white screen (`#intro`).
+1. **Intro:** a text-only Enter button (no frame) on a glowing white screen (`#intro`).
 2. **Opening:** scroll scrubs `assets/cameras/opening.glb` through the splat (`assets/splat.spz`). The path is: inside the doors, up the stairs, down a hallway with large paintings on both sides. Near the end it fades to glowing white, then into the library.
-3. **Library home:** three clickable areas (desk, bookshelves, ceiling). Visitors can click the labels or the 3D objects.
+3. **Library home:** three clickable areas (desk, bookshelves, ceiling). The triggers are glowing dots with **no text labels** (the names are `aria-label`s only); visitors can also click the 3D objects. **Framing (owner's direction):** the upper back corner where the bookshelf wall meets the ceiling sits horizontally centred, 40% down the viewport. The placeholder home view does this with `frame: { point, y }` in `PLACEHOLDER_VIEWS`, solved from vertical FOV so it holds at any aspect. On narrow screens the desk trigger can fall off the right edge.
    - **Bookshelves:**
      - The book slides out spine first, comes to the viewer, opens, flips pages and stays open.
      - Clicking its left side unfolds a map.
      - Scrolling steps through the map (its highlighted info changes) while blurred text on the right page comes into focus area by area.
      - After the last step the book closes on its **back cover**.
      - Scrolling up reopens the book. A button to the right of the book returns to the library.
-   - **Ceiling:** the camera shifts up. Clickable ceiling elements open an enlarged view with information. A return button sits top right.
-   - **Desk:** the camera faces the desk. A distorted but not creepy figure talks through a branching dialog. A return button appears top right after the dialog ends.
+   - **Ceiling:** the camera shifts up.
+     - Elements are matte (not glowing), with an outline glow at 50% opacity that eases to 100% on hover or keyboard focus.
+     - Clicking one opens the enlarged view, then the element dissolves into a soft white void and can't be clicked again.
+     - **Return to library** (top right) appears only after every element has been clicked and its detail closed.
+     - Each element has an invisible disc hit area (so a ring's hole still counts) and an invisible, keyboard-focusable button over it.
+   - **Desk:** the camera faces the desk. A distorted but not creepy figure talks through a branching dialog.
+     - The figure's lines appear in a **speech bubble to the left of its head**, with a tail pointing at it.
+     - The reply options are separate, sitting **on the desk below** (projected from the desk's front edge).
+     - A return button appears top right after the dialog ends.
    - **Returning** goes to an "adjusted version" of the library home. The owner will describe it later. For now `Library.applyAdjustedHome()` only records visited areas (`body[data-visited]`, `body.library-returned`).
 
 ## File map
@@ -104,6 +111,8 @@ How tracks are read and aligned:
 - `Object3D.lookAt` points +z at the target, while cameras look down −z. The placeholder glide rotates the temp object by π to compensate.
 - `SparkRenderer.preBlurAmount` is driven by `LOOK.splatSoftness`.
 - Spark renders correctly through `EffectComposer` (verified live).
+- In Node tests, call `scene.updateMatrixWorld(true)` before raycasting; matrices only update on render in the browser.
+- When browser-testing after a deploy, refresh cached modules with `fetch(path, {cache: 'reload'})` before reloading, or you'll test the old code.
 - The 404s in the browser console come from `HEAD` checks for camera files that don't exist yet. They are expected.
 
 ## Working in this environment
