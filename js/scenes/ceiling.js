@@ -1,15 +1,25 @@
-// Ceiling: placeholder elements on the ceiling that can be clicked to
-// see an enlarged version with information. A return button sits in the
-// upper right corner.
+// Ceiling: placeholder elements on the ceiling. Each has a soft outline glow
+// (50% at rest, easing to 100% on hover). Clicking one shows an enlarged
+// version with information; the element then dissolves into a white void and
+// can't be clicked again. The return button appears once every element has
+// been clicked.
 import * as THREE from "three";
 import { CEILING } from "../config.js";
-import { el, toScreen } from "../ui.js";
+import { el, toScreen, tween, ease } from "../ui.js";
 
 const SHAPES = {
   ring: () => new THREE.RingGeometry(0.22, 0.34, 48),
   square: () => new THREE.PlaneGeometry(0.5, 0.5),
   triangle: () => new THREE.CircleGeometry(0.36, 3),
   diamond: () => new THREE.CircleGeometry(0.36, 4),
+};
+
+// Slightly larger copies behind each element; only their rim shows, as the glow.
+const OUTLINES = {
+  ring: () => new THREE.RingGeometry(0.195, 0.365, 48),
+  square: () => new THREE.PlaneGeometry(0.55, 0.55),
+  triangle: () => new THREE.CircleGeometry(0.41, 3),
+  diamond: () => new THREE.CircleGeometry(0.4, 4),
 };
 
 // Larger versions shown in the detail panel (simple SVG placeholders).
@@ -20,31 +30,89 @@ const SVG = {
   diamond: '<polygon points="50,10 90,50 50,90 10,50" fill="currentColor"/>',
 };
 
+const REST_GLOW = 0.5;
+const HOVER_GLOW = 1;
+
+// Soft white radial patch left behind where an element was.
+function voidTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.45, "rgba(255,255,255,0.85)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export class CeilingView {
   constructor(app, library) {
     this.app = app;
     this.library = library;
     this.active = false;
+    this.hovered = null;
 
-    const mat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xf4efe6,
-      emissiveIntensity: 0.6,
-      roughness: 0.6,
-      side: THREE.DoubleSide,
-    });
+    const voidMap = voidTexture();
     this.items = CEILING.elements.map((item, i) => {
-      const mesh = new THREE.Mesh(SHAPES[item.shape]?.() ?? SHAPES.square(), mat);
-      mesh.position.copy(library.ceilingSpots[i % library.ceilingSpots.length]);
-      mesh.rotation.x = Math.PI / 2; // face down into the room
+      const spot = library.ceilingSpots[i % library.ceilingSpots.length];
+      const faceDown = (m, dy) => {
+        m.position.copy(spot);
+        m.position.y += dy;
+        m.rotation.x = Math.PI / 2;
+        library.ceilingGroup.add(m);
+        return m;
+      };
+
+      // the element itself: matte, not glowing
+      const mesh = faceDown(new THREE.Mesh(
+        SHAPES[item.shape]?.() ?? SHAPES.square(),
+        new THREE.MeshStandardMaterial({ color: 0xe6e2db, roughness: 0.9, side: THREE.DoubleSide, transparent: true }),
+      ), 0);
       mesh.userData.item = item;
-      library.ceilingGroup.add(mesh);
-      const button = el(
-        "button",
-        { type: "button", class: "hotspot", "aria-label": item.title, onclick: () => this.open(item) },
-        el("span", { class: "hotspot-dot" }),
-      );
-      return { item, mesh, button };
+
+      // outline glow just behind it (nearer the ceiling)
+      const outline = faceDown(new THREE.Mesh(
+        OUTLINES[item.shape]?.() ?? OUTLINES.square(),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(1, 1, 1).multiplyScalar(1.6), // bright enough to bloom
+          transparent: true,
+          opacity: REST_GLOW,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        }),
+      ), 0.005);
+
+      // white void shown after it's been clicked
+      const voidMesh = faceDown(new THREE.Mesh(
+        new THREE.PlaneGeometry(1.0, 1.0),
+        new THREE.MeshBasicMaterial({
+          map: voidMap,
+          color: new THREE.Color(1, 1, 1).multiplyScalar(1.5),
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        }),
+      ), -0.003);
+      voidMesh.visible = false;
+
+      const entry = { item, mesh, outline, voidMesh, glow: REST_GLOW, done: false };
+      // Invisible, keyboard-focusable trigger over each element.
+      entry.button = el("button", {
+        type: "button",
+        class: "hotspot hotspot--ghost",
+        "aria-label": item.title,
+        onclick: () => this.select(entry),
+        onfocus: () => (this.hovered = entry),
+        onblur: () => { if (this.hovered === entry) this.hovered = null; },
+      });
+      return entry;
     });
 
     this.layer = el("div", { class: "hotspots ceiling-hotspots" }, ...this.items.map((i) => i.button));
@@ -65,10 +133,35 @@ export class CeilingView {
     document.body.append(this.layer, this.returnButton, this.detail);
   }
 
+  get allDone() {
+    return this.items.every((i) => i.done);
+  }
+
   enter() {
     this.active = true;
     this.layer.classList.add("is-active");
-    this.returnButton.classList.add("is-visible");
+    this.updateReturn();
+  }
+
+  // Click on an element: show it enlarged, then dissolve it into a void.
+  select(entry) {
+    if (entry.done) return;
+    entry.done = true;
+    entry.button.disabled = true;
+    entry.button.tabIndex = -1;
+    if (this.hovered === entry) this.hovered = null;
+    this.open(entry.item);
+
+    entry.voidMesh.visible = true;
+    tween(1.2, (t) => {
+      const k = ease.inOut(t);
+      entry.mesh.material.opacity = 1 - k;
+      entry.outline.material.opacity = entry.glow * (1 - k);
+      entry.voidMesh.material.opacity = k;
+    }).then(() => {
+      entry.mesh.visible = false;
+      entry.outline.visible = false;
+    });
   }
 
   open(item) {
@@ -82,31 +175,50 @@ export class CeilingView {
   }
 
   close() {
+    if (this.detail.hidden) return;
     this.detail.classList.remove("is-open");
     this.detail.hidden = true;
-    this.lastFocus?.focus?.();
+    this.updateReturn();
+    if (this.allDone && this.active) this.returnButton.focus({ preventScroll: true });
+    else this.lastFocus?.focus?.();
+  }
+
+  // The return button only appears once every element has been clicked.
+  updateReturn() {
+    const show = this.active && this.allDone && this.detail.hidden;
+    this.returnButton.classList.toggle("is-visible", show);
+    this.returnButton.tabIndex = show ? 0 : -1;
   }
 
   onClick(e) {
     const hit = this.hit(e);
-    if (hit) this.open(hit);
+    if (hit) this.select(hit);
   }
 
   cursorAt(e) {
-    return !!this.hit(e);
+    this.hovered = this.hit(e);
+    return !!this.hovered;
   }
 
   hit(e) {
-    if (!this.active) return null;
+    if (!this.active || !this.detail.hidden) return null;
     const rect = this.app.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.app.camera);
-    const hits = ray.intersectObjects(this.items.map((i) => i.mesh), false);
-    return hits[0]?.object.userData.item ?? null;
+    const live = this.items.filter((i) => !i.done);
+    const hits = ray.intersectObjects(live.flatMap((i) => [i.mesh, i.outline]), false);
+    return hits.length ? live.find((i) => i.mesh === hits[0].object || i.outline === hits[0].object) : null;
   }
 
-  update() {
+  update(dt = 0.016) {
+    const k = 1 - Math.exp(-dt * 8);
+    for (const entry of this.items) {
+      if (entry.done) continue;
+      const target = this.active && this.hovered === entry ? HOVER_GLOW : REST_GLOW;
+      entry.glow += (target - entry.glow) * k;
+      entry.outline.material.opacity = entry.glow;
+    }
     if (!this.active) return;
     for (const { mesh, button } of this.items) {
       const s = toScreen(mesh.position, this.app.camera);
@@ -118,7 +230,8 @@ export class CeilingView {
   async exit() {
     this.close();
     this.active = false;
+    this.hovered = null;
     this.layer.classList.remove("is-active");
-    this.returnButton.classList.remove("is-visible");
+    this.updateReturn();
   }
 }

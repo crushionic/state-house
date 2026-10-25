@@ -75,7 +75,17 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   transition: opacity 1.6s ease;
 }
 #intro.is-leaving { opacity: 0; pointer-events: none; }
-#enter { font-size: 1.05rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.9rem 2.2rem; }
+#enter {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.9rem 1.4rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  transition: opacity 0.3s ease, text-shadow 0.3s ease;
+}
+#enter:hover { background: none; box-shadow: none; text-shadow: 0 0 18px #fff, 0 0 6px #fff; }
 #enter:disabled { opacity: 0.6; cursor: progress; }
 #intro-status { min-height: 1.2em; margin: 0; color: var(--ink-soft); font-size: 0.85rem; }
 
@@ -130,6 +140,14 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   font-size: 0.85rem;
   white-space: nowrap;
 }
+.hotspot--ghost {
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 50%;
+  pointer-events: none; /* the 3D element underneath takes the pointer */
+}
+.hotspot--ghost:focus-visible { outline: 2px solid rgba(59, 56, 51, 0.5); outline-offset: 0; }
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.2); }
@@ -207,25 +225,45 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   .detail-art svg { max-height: 30vh; }
 }
 
-/* ── Desk dialog ── */
-.dialog {
+/* ── Desk dialog: speech bubble + replies on the desk ── */
+.speech-bubble,
+.dialog-choices {
   position: fixed;
-  left: 50%;
-  bottom: 24px;
+  top: 0;
+  left: 0;
   z-index: 6;
-  width: min(40rem, calc(100vw - 32px));
-  padding: 1.25rem 1.5rem;
-  border-radius: 10px;
-  background: var(--glass-strong);
-  box-shadow: 0 0 50px #fff;
-  transform: translate(-50%, 12px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.5s ease;
 }
-.dialog.is-visible { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
-.dialog-text { margin: 0 0 1rem; line-height: 1.6; font-family: var(--body); font-size: 1em; }
-.dialog-choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.speech-bubble.is-visible,
+.dialog-choices.is-visible { opacity: 1; pointer-events: auto; }
+.speech-bubble {
+  padding: 1rem 1.2rem;
+  border-radius: 18px;
+  background: var(--glass-strong);
+  box-shadow: 0 0 40px #fff;
+}
+/* tail pointing right, toward the figure */
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  margin-top: -10px;
+  border-width: 10px 0 10px 14px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--glass-strong);
+}
+.dialog-text { margin: 0; line-height: 1.6; font-family: var(--body); font-size: 1em; }
+.dialog-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
 .dialog-choice { padding: 0.55rem 1.1rem; font-size: 0.9rem; }
 
 /* ── Placeholder list (development aid) ── */

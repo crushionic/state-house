@@ -14,11 +14,29 @@ const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // Placeholder views of the placeholder room. Replaced by Blender exports.
 const PLACEHOLDER_VIEWS = {
-  home: { pos: v3(0, 1.6, 2.6), look: v3(0, 1.7, -2.5), fov: 60 },
+  // Owner's direction: the upper back corner where the bookshelf wall meets
+  // the ceiling sits in the horizontal middle, 40% down from the top.
+  home: { pos: v3(0, 1.6, 2.6), frame: { point: v3(-4, 4.2, -5), y: 0.4 }, fov: 60 },
   bookshelf: { pos: v3(-2.1, 1.4, -1.5), look: v3(-3.7, 1.35, -1.5), fov: 50 },
   ceiling: { pos: v3(0, 1.4, -0.9), look: v3(0, 4.2, -1.7), fov: 72 },
   desk: { pos: v3(1.2, 1.3, -0.7), look: v3(1.2, 1.15, -3.0), fov: 50 },
 };
+
+// Camera orientation for a view: either looking at `look`, or aimed so the
+// `frame.point` lands centred horizontally at `frame.y` (0 top – 1 bottom).
+// Uses vertical FOV only, so it holds for any screen shape.
+function viewQuat(view) {
+  if (view.frame) {
+    const d = view.frame.point.clone().sub(view.pos);
+    const yaw = Math.atan2(-d.x, -d.z);
+    const pitchTo = Math.atan2(d.y, Math.hypot(d.x, d.z));
+    const ndcY = 1 - 2 * view.frame.y;
+    const pitch = pitchTo - Math.atan(ndcY * Math.tan(THREE.MathUtils.degToRad(view.fov / 2)));
+    return new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
+  }
+  const m = new THREE.Matrix4().lookAt(view.pos, view.look, new THREE.Vector3(0, 1, 0));
+  return new THREE.Quaternion().setFromRotationMatrix(m);
+}
 
 const TRACK_FOR = { bookshelf: "toBookshelf", ceiling: "toCeiling", desk: "toDesk" };
 
@@ -159,8 +177,8 @@ export class Library {
         "button",
         { type: "button", class: "hotspot", "data-area": a.id, onclick: () => this.goTo(a.id) },
         el("span", { class: "hotspot-dot" }),
-        el("span", { class: "hotspot-label", text: a.label }),
       );
+      button.setAttribute("aria-label", a.label);
       this.hotspotLayer.append(button);
       return { id: a.id, button };
     });
@@ -176,7 +194,7 @@ export class Library {
   setView(view) {
     const cam = this.app.camera;
     cam.position.copy(view.pos);
-    cam.lookAt(view.look);
+    cam.quaternion.copy(viewQuat(view));
     if (view.fov && cam.fov !== view.fov) {
       cam.fov = view.fov;
       cam.updateProjectionMatrix();
@@ -203,11 +221,7 @@ export class Library {
     from.position.copy(cam.position);
     from.quaternion.copy(cam.quaternion);
     const target = forward ? PLACEHOLDER_VIEWS[area] : this.homeView();
-    const to = new THREE.Object3D();
-    to.position.copy(target.pos);
-    to.lookAt(target.look);
-    // Object3D.lookAt points +z at the target; cameras look down -z.
-    to.rotateY(Math.PI);
+    const to = { position: target.pos, quaternion: viewQuat(target) };
     const fov0 = cam.fov;
     const fov1 = target.fov ?? fov0;
     await tween(LIBRARY.transitionSeconds, (t) => {

@@ -3,7 +3,11 @@
 // return button appears in the upper right corner.
 import * as THREE from "three";
 import { ASSETS, DIALOG } from "../config.js";
-import { el, placeholderNote } from "../ui.js";
+import { el, placeholderNote, toScreen } from "../ui.js";
+
+// Screen anchors: the bubble sits left of the head; choices sit on the desk.
+const HEAD_LEFT = new THREE.Vector3(-0.28, 1.62, 0); // relative to the figure
+const DESK_FRONT = new THREE.Vector3(1.2, 0.79, -2.2); // front edge of the desk top
 
 // A gentle, slow wobble with a soft white rim glow — distorted, not creepy.
 const FigureShader = {
@@ -56,20 +60,22 @@ export class DeskView {
     this.figure = figure;
 
     this.text = el("p", { class: "dialog-text" });
-    this.choices = el("div", { class: "dialog-choices" });
-    this.box = el("div", { class: "dialog", "aria-live": "polite" }, this.text, this.choices);
+    this.bubble = el("div", { class: "speech-bubble", "aria-live": "polite" }, this.text);
+    this.choices = el("div", { class: "dialog-choices", role: "group", "aria-label": "Replies" });
     this.returnButton = el("button", {
       type: "button",
       class: "return-button corner",
       text: "Return to library",
       onclick: () => library.returnHome(),
     });
-    document.body.append(this.box, this.returnButton);
+    document.body.append(this.bubble, this.choices, this.returnButton);
   }
 
   enter() {
     this.active = true;
-    this.box.classList.add("is-visible");
+    this.place();
+    this.bubble.classList.add("is-visible");
+    this.choices.classList.add("is-visible");
     this.show(DIALOG.start);
   }
 
@@ -95,7 +101,8 @@ export class DeskView {
   }
 
   finish() {
-    this.box.classList.remove("is-visible");
+    this.bubble.classList.remove("is-visible");
+    this.choices.classList.remove("is-visible");
     this.returnButton.classList.add("is-visible");
     this.returnButton.focus({ preventScroll: true });
   }
@@ -105,11 +112,27 @@ export class DeskView {
     u.time.value += dt;
     this.speak = Math.max(0, this.speak - dt * 0.8);
     u.speak.value = this.speak;
+    if (this.active) this.place();
+  }
+
+  // Keep the bubble beside the figure's head and the choices on the desk.
+  place() {
+    const cam = this.app.camera;
+    const head = toScreen(this.figure.localToWorld(HEAD_LEFT.clone()), cam);
+    if (head) {
+      const room = head.x - 28; // space to the left of the head
+      const width = Math.max(160, Math.min(352, room));
+      const x = Math.max(12 + width, head.x - 16);
+      Object.assign(this.bubble.style, { width: `${width}px`, transform: `translate(${x}px, ${head.y}px) translate(-100%, -50%)` });
+    }
+    const desk = toScreen(DESK_FRONT, cam);
+    if (desk) this.choices.style.transform = `translate(${desk.x}px, ${desk.y}px) translate(-50%, 0)`;
   }
 
   async exit() {
     this.active = false;
-    this.box.classList.remove("is-visible");
+    this.bubble.classList.remove("is-visible");
+    this.choices.classList.remove("is-visible");
     this.returnButton.classList.remove("is-visible");
   }
 }
