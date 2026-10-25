@@ -50,6 +50,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 | `js/scenes/desk.js` | Wobbling glow-shader figure and the dialog |
 | `assets/cameras/README.md` | Owner-facing Blender export instructions and the expected file names |
 | `assets/splat.spz` | Opening splat (state house facade), about 23.6 MB |
+| `favicon.ico`, `assets/icons/` | Favicon (yellow anchor, supplied by the owner) in .ico, 32 px, 180 px (Apple touch) and 512 px |
 
 ## Camera tracks (Blender → site)
 
