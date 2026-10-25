@@ -2,10 +2,70 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>title pending</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+          "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.4.0/spark.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="js/main.js"></script>
   </head>
   <body>
-    <h1>#statehouseeee</h1>
+    <!-- 3D scene, fixed behind everything -->
+    <canvas id="stage" aria-hidden="true"></canvas>
+
+    <!-- Loading screen -->
+    <div id="loader" role="status">
+      <p id="loader-text">Loading</p>
+    </div>
+
+    <!-- Scroll content: one section per camera shot in js/scene-config.js -->
+    <main id="story">
+      <section class="shot">
+        <div class="card">
+          <h1>#statehouseeee</h1>
+          <p>Placeholder intro text. Scroll to begin.</p>
+        </div>
+      </section>
+      <section class="shot">
+        <div class="card"><p>Placeholder text for the approach.</p></div>
+      </section>
+      <section class="shot">
+        <div class="card"><p>Placeholder text for the facade.</p></div>
+      </section>
+      <section class="shot">
+        <div class="card"><p>Placeholder text for the doorway.</p></div>
+      </section>
+      <section class="shot">
+        <div class="card"><p>Placeholder closing text.</p></div>
+      </section>
+    </main>
+
+    <!-- Hotspot buttons are positioned here by js/main.js -->
+    <div id="hotspots"></div>
+
+    <!-- Panel opened by a hotspot -->
+    <aside id="panel" hidden aria-labelledby="panel-title">
+      <button id="panel-close" type="button" aria-label="Close">×</button>
+      <h2 id="panel-title"></h2>
+      <p id="panel-body"></p>
+    </aside>
+
+    <!-- Camera tool, only shown with ?camera in the URL -->
+    <div id="camera-tool" hidden>
+      <p class="camera-help">
+        Drag to orbit · scroll to zoom · right-drag to pan<br />
+        W A S D to move · Q / E down / up · Shift for speed · 1–9 jump to shot
+      </p>
+      <div id="camera-jumps"></div>
+      <code id="camera-readout"></code>
+      <button id="camera-copy" type="button">Copy shot</button>
+    </div>
   </body>
 </html>

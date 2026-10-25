@@ -1,0 +1,169 @@
+:root {
+  --bg: #050505;
+  --fg: #f2efe9;
+  --muted: rgba(242, 239, 233, 0.6);
+  --card: rgba(10, 10, 10, 0.55);
+  --accent: #f2efe9;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+/* ── Loader ── */
+#loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  z-index: 50;
+  transition: opacity 0.8s ease;
+}
+#loader.is-done { opacity: 0; pointer-events: none; }
+#loader-text { color: var(--muted); letter-spacing: 0.08em; font-size: 0.85rem; }
+
+/* ── Scroll story ── */
+#story { position: relative; z-index: 1; pointer-events: none; }
+
+.shot {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 16px 12vh;
+}
+
+.card {
+  max-width: 28rem;
+  padding: 1rem 1.25rem;
+  background: var(--card);
+  backdrop-filter: blur(6px);
+  border-radius: 6px;
+  pointer-events: auto;
+}
+.card h1 { margin: 0 0 0.5rem; font-size: clamp(1.6rem, 4vw, 2.4rem); }
+.card p { margin: 0; line-height: 1.5; color: var(--muted); }
+
+/* ── Hotspots ── */
+#hotspots { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+
+.hotspot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -9px 0 0 -9px; /* centre the dot on the point */
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.hotspot.is-visible { opacity: 1; pointer-events: auto; }
+
+.hotspot-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: rgba(242, 239, 233, 0.2);
+  animation: pulse 2s ease-in-out infinite;
+}
+.hotspot-label {
+  padding: 0.2rem 0.5rem;
+  background: var(--card);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.hotspot:focus-visible .hotspot-dot { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+/* ── Panel ── */
+#panel {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 10;
+  width: min(24rem, calc(100vw - 32px));
+  padding: 1.25rem;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+}
+#panel h2 { margin: 0 2rem 0.5rem 0; font-size: 1.2rem; }
+#panel p { margin: 0; line-height: 1.5; color: var(--muted); }
+#panel-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+/* ── Camera tool ── */
+body.camera-tool #story { display: none; }
+body.camera-tool { overflow: hidden; }
+
+#camera-tool {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  max-width: calc(100vw - 32px);
+  padding: 0.75rem;
+  background: rgba(10, 10, 10, 0.85);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+#camera-tool[hidden] { display: none; }
+.camera-help { margin: 0 0 0.5rem; color: var(--muted); line-height: 1.5; }
+#camera-jumps { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.5rem; }
+#camera-tool button {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(242, 239, 233, 0.3);
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+#camera-readout {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-dot { animation: none; }
+}
