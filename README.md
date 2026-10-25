@@ -1,31 +1,35 @@
 # state-house
 
-A scroll-driven walk through a Gaussian-splat capture, rendered with [Spark](https://sparkjs.dev) and three.js. No build step: GitHub Pages serves these files as-is.
+A scroll-driven walk through a Gaussian-splat capture into a library you can explore, rendered with [Spark](https://sparkjs.dev) and three.js. No build step: GitHub Pages serves these files as-is.
+
+## Flow
+
+1. **Intro:** an Enter button.
+2. **Opening:** scroll moves the camera through the splat along a Blender camera move, then fades into glowing white.
+3. **Library home:** three areas to click: desk, bookshelves, ceiling.
+   - **Bookshelves:** a book slides out spine first, opens and flips pages. Click its left side to unfold a map. Scrolling steps through the map while parts of the text on the right come into focus; at the end the book closes on its back cover. Scroll back to reopen it, or use the button to its right to return.
+   - **Ceiling:** click elements for an enlarged view with information. Return button top right.
+   - **Desk:** a branching dialog with the figure behind the desk. Return button top right once the dialog is done.
+
+Everything not yet supplied is a placeholder: camera moves, the library, the book, the figure and all text (lorem ipsum). A "Placeholders" note in the corner lists what's still missing.
 
 ## Files
 
 | Path | What it is |
 |---|---|
-| `index.html` | Page structure: one `<section class="shot">` per camera shot |
-| `js/scene-config.js` | **The file to edit**: splat path, camera shots, hotspots |
-| `js/main.js` | Rendering, scroll → camera mapping, hotspots, camera tool |
-| `css/style.css` | Styles |
-| `assets/splat.spz` | The splat (SPZ v4) |
+| `js/config.js` | **The file to edit**: asset paths, look settings, placeholder text, map steps, dialog |
+| `assets/cameras/` | Blender camera exports go here; see the README in that folder |
+| `assets/splat.spz` | Opening splat |
+| `js/main.js` | Start-up and the overall flow |
+| `js/look.js` | Hazy white post-processing |
+| `js/camera-track.js` | Reads Blender camera animations |
+| `js/scenes/` | One file per scene: opening, library, book, ceiling, desk |
 
-## Setting up camera shots
+## URL options
 
-Open the site with `?camera` on the end of the URL (for example `https://…/?camera`, or `?camera=3` to start at shot 3).
-
-- Drag to orbit, scroll to zoom, right-drag to pan
-- W A S D to move, Q / E down and up, Shift to go faster
-- Number keys jump to existing shots
-- **Copy shot** copies the current view as a line you paste into `SHOTS` in `js/scene-config.js`
-
-If you add or remove a shot, add or remove a matching `<section class="shot">` in `index.html` so the counts stay equal.
-
-## Swapping in the final splat
-
-Replace `assets/splat.spz` with the new file (same name), or point `SPLAT_URL` in `js/scene-config.js` at the new location, such as an R2 URL. If the new export has a different scale or origin, re-check the shots with `?camera`.
+- `?look` — live panel for the haze, glow and color; **Copy settings** gives you a block to paste into `js/config.js`
+- `?start=library` — skip straight to the library
+- `?nofx` — turn post-processing off, if a device shows a black screen
 
 ## Running locally
 
