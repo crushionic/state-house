@@ -127,10 +127,10 @@ export class Library {
     }
     const lamp = addTo(desk, new THREE.Mesh(
       new THREE.SphereGeometry(0.09, 24, 16),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8ee, emissiveIntensity: 2 }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8ee, emissiveIntensity: 0.7 }),
     ));
     lamp.position.set(1.85, 1.05, -2.8);
-    const lampLight = new THREE.PointLight(0xfff4e6, 3, 4);
+    const lampLight = new THREE.PointLight(0xfff4e6, 1.2, 4);
     lampLight.position.copy(lamp.position);
     g.add(lampLight);
     this.figureSpot = v3(1.2, 0, -3.35);

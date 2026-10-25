@@ -125,15 +125,15 @@ export class Book {
     this.library.group.add(this.root);
 
     // Box face order: +x, -x, +y, -y, +z (inside page), -z (outside cover)
-    const half = (outside) => new THREE.Mesh(new THREE.BoxGeometry(W, H, T), [edge, coverEdge, edge, edge, page, outside]);
+    const half = (outside, inside) => new THREE.Mesh(new THREE.BoxGeometry(W, H, T), [edge, coverEdge, edge, edge, inside, outside]);
 
     this.leftPivot = new THREE.Group();
-    this.leftBlock = half(front);
+    this.leftBlock = half(front, page);
     this.leftBlock.position.set(-W / 2, 0, -T / 2);
     this.leftPivot.add(this.leftBlock);
 
     this.rightPivot = new THREE.Group();
-    this.rightBlock = half(back);
+    this.rightBlock = half(back, paper); // plain: the text overlay sits here
     this.rightBlock.position.set(W / 2, 0, -T / 2);
     this.rightPivot.add(this.rightBlock);
 
