@@ -36,7 +36,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 | Path | Role |
 |---|---|
 | `index.html` | Import map, canvas, intro, white-fade overlay, scroll spacer |
-| `css/style.css` | All styles. Tokens on `:root`; `[hidden]` is forced to `display: none` |
+| `css/style.css` | All styles. Tokens on `:root`; `[hidden]` is forced to `display: none`. Body text uses `--body` = **Scotch Text Condensed** (`scotch-text-condensed`, Adobe Fonts kit `uuy6ocy`, linked in `index.html`) at 1em; dev aids stay in system sans |
 | `js/config.js` | **The single place for tunables**: asset paths, Blender alignment, look, placeholder text, map steps, ceiling items, dialog tree |
 | `js/main.js` | Renderer, SparkRenderer, flow (intro → opening → library), render loop, white-fade compositing. `?start=library` skips to the library |
 | `js/look.js` | Post-processing: bloom + haze shader (soft edges, desaturation, lift to white, white edge glow, grain, fade-to-white). `?look` opens a tuning panel; `?nofx` disables post-processing |
