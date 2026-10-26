@@ -251,6 +251,48 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 }
 .dialog-choice { padding: 0.55rem 1.1rem; font-size: 0.9rem; }
 
+/* ── Ending ── */
+.ending {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+.ending.is-white { opacity: 1; }
+.ending-white {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  box-shadow: 0 0 120px 40px #fff;
+  transition: transform 1.8s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.ending.is-black .ending-white { transform: scale(0); }
+.ending-text {
+  position: relative;
+  margin: 0;
+  padding: 0 24px;
+  text-align: center;
+  font-family: var(--body);
+  font-size: clamp(1.6rem, 4vw, 3rem);
+  color: #fff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 0 32px rgba(255, 255, 255, 0.6), 0 0 64px rgba(255, 255, 255, 0.35);
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+.ending.show-text .ending-text { opacity: 1; }
+body.is-ending .return-button,
+body.is-ending .dialog-choices,
+body.is-ending .speech-bubble,
+body.is-ending .hotspots,
+body.is-ending .book-overlay { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .ending-white { transition-duration: 0.3s; }
+}
+
 /* ── Placeholder list (development aid) ── */
 #placeholder-notes {
   font-family: var(--sans);

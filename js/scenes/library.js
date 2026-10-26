@@ -1,5 +1,7 @@
 // Library home: a placeholder room with three clickable areas (desk,
-// bookshelves, ceiling). Each area has its own scene module. Camera moves
+// bookshelves, ceiling). After each visit the view shifts to the adjusted
+// menu for the areas still unseen; returning from the last one plays the
+// ending. Each area has its own scene module. Camera moves
 // come from Blender exports when present; otherwise a simple placeholder
 // glide between placeholder views of the placeholder room.
 import * as THREE from "three";
@@ -9,6 +11,7 @@ import { el, placeholderNote, toScreen, tween, ease } from "../ui.js";
 import { Book } from "./book.js";
 import { CeilingView } from "./ceiling.js";
 import { DeskView } from "./desk.js";
+import { playEnding } from "../ending.js";
 
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -38,7 +41,24 @@ function viewQuat(view) {
   return new THREE.Quaternion().setFromRotationMatrix(m);
 }
 
+// Adjusted library views after areas have been visited (owner's direction),
+// keyed by the visited areas in alphabetical order joined with "+".
+// After one area: the two unvisited areas fill ~90% of the screen and the
+// visited one is a ~10% sliver on its side (bookshelf left, ceiling top,
+// desk right). After two: the last unvisited area fills ~90%, with both
+// visited areas as slivers. Solved numerically for the placeholder room;
+// Blender stills (ASSETS.cameras.libraryAfter) replace them.
+const ADJUSTED_VIEWS = {
+  bookshelf: { pos: v3(1.81, 1.2, -0.93), look: v3(0.88, 2.1, -3.64), fov: 60 },
+  ceiling: { pos: v3(2.4, 1.22, -0.96), look: v3(-0.05, 1.17, -2.7), fov: 60 },
+  desk: { pos: v3(-0.63, 1.2, 1.55), look: v3(-1.9, 1.8, -1.1), fov: 60 },
+  "bookshelf+ceiling": { pos: v3(1.59, 1.02, -1.82), look: v3(0.29, 1.53, -4.48), fov: 60 },
+  "bookshelf+desk": { pos: v3(0.17, 0.9, -1.97), look: v3(-0.18, 3.8, -2.69), fov: 60 },
+  "ceiling+desk": { pos: v3(-3.16, 2.91, -2.72), look: v3(-1.25, 2.21, -4.93), fov: 60 },
+};
+
 const TRACK_FOR = { bookshelf: "toBookshelf", ceiling: "toCeiling", desk: "toDesk" };
+const AREAS = ["bookshelf", "ceiling", "desk"];
 
 export class Library {
   constructor(app) {
@@ -62,12 +82,17 @@ export class Library {
     };
 
     const c = ASSETS.cameras;
-    this.ready = Promise.all(
-      ["library", "toBookshelf", "toCeiling", "toDesk"].map(async (key) => {
+    this.stateTracks = {};
+    this.ready = Promise.all([
+      ...["library", "toBookshelf", "toCeiling", "toDesk"].map(async (key) => {
         this.tracks[key] = await loadCameraTrack(c[key]);
         if (!this.tracks[key]) placeholderNote(`Library camera (${key}): add ${c[key]}`);
       }),
-    );
+      ...Object.entries(c.libraryAfter ?? {}).map(async ([key, url]) => {
+        this.stateTracks[key] = await loadCameraTrack(url);
+        if (!this.stateTracks[key]) placeholderNote("Adjusted library views: add assets/cameras/library-after-*.glb");
+      }),
+    ]);
     if (!ASSETS.libraryModel) placeholderNote("Library: placeholder room (model not added yet)");
 
     // Click an area in the room itself, as well as its label.
@@ -201,52 +226,76 @@ export class Library {
     }
   }
 
-  setHomeCamera() {
-    const t = this.tracks.library;
-    if (t) t.apply(0, this.app.camera);
-    else this.setView(PLACEHOLDER_VIEWS.home);
+  // Which adjusted view applies: visited areas, sorted, joined with "+".
+  visitedKey() {
+    return AREAS.filter((a) => this.visited.has(a)).join("+");
   }
 
-  // Move between home and an area. forward = into the area.
-  async moveCamera(area, forward) {
-    const track = this.tracks[TRACK_FOR[area]];
+  setHomeCamera() {
+    this.setView(this.homeView());
+  }
+
+  // Glide the camera to a view (placeholder moves, and linking Blender moves
+  // to the adjusted views).
+  async glideTo(view, seconds = LIBRARY.transitionSeconds) {
     const cam = this.app.camera;
-    if (track) {
-      const seconds = track.seconds || LIBRARY.transitionSeconds;
-      await tween(seconds, (t) => track.apply(forward ? t : 1 - t, cam));
-      return;
-    }
-    // Placeholder glide between placeholder views.
-    const from = new THREE.Object3D();
-    from.position.copy(cam.position);
-    from.quaternion.copy(cam.quaternion);
-    const target = forward ? PLACEHOLDER_VIEWS[area] : this.homeView();
-    const to = { position: target.pos, quaternion: viewQuat(target) };
+    const p0 = cam.position.clone();
+    const q0 = cam.quaternion.clone();
+    const q1 = viewQuat(view);
     const fov0 = cam.fov;
-    const fov1 = target.fov ?? fov0;
-    await tween(LIBRARY.transitionSeconds, (t) => {
+    const fov1 = view.fov ?? fov0;
+    await tween(seconds, (t) => {
       const k = ease.inOut(t);
-      cam.position.lerpVectors(from.position, to.position, k);
-      cam.quaternion.slerpQuaternions(from.quaternion, to.quaternion, k);
+      cam.position.lerpVectors(p0, view.pos, k);
+      cam.quaternion.slerpQuaternions(q0, q1, k);
       cam.fov = fov0 + (fov1 - fov0) * k;
       cam.updateProjectionMatrix();
     });
   }
 
-  homeView() {
-    if (this.tracks.library) {
-      const tmp = new THREE.PerspectiveCamera();
-      this.tracks.library.apply(0, tmp);
-      const look = new THREE.Vector3(0, 0, -1).applyQuaternion(tmp.quaternion).add(tmp.position);
-      return { pos: tmp.position.clone(), look, fov: tmp.fov };
+  // Move between the library view and an area. forward = into the area.
+  async moveCamera(area, forward) {
+    const track = this.tracks[TRACK_FOR[area]];
+    if (track) {
+      const cam = this.app.camera;
+      const seconds = track.seconds || LIBRARY.transitionSeconds;
+      const start = this.trackView(track, 0);
+      const home = this.homeView();
+      const differs = start.pos.distanceTo(home.pos) > 1e-3;
+      // The Blender move starts at the first library view; link the
+      // adjusted views to it with a glide.
+      if (forward && differs) await this.glideTo(start, 1.0);
+      await tween(seconds, (t) => track.apply(forward ? t : 1 - t, cam));
+      if (!forward && differs) await this.glideTo(home, 1.0);
+      return;
     }
-    return PLACEHOLDER_VIEWS.home;
+    await this.glideTo(forward ? PLACEHOLDER_VIEWS[area] : this.homeView());
+  }
+
+  trackView(track, t) {
+    const tmp = new THREE.PerspectiveCamera();
+    track.apply(t, tmp);
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(tmp.quaternion).add(tmp.position);
+    return { pos: tmp.position.clone(), look, fov: tmp.fov };
+  }
+
+  // The library view for the current visited state.
+  homeView() {
+    const key = this.visitedKey();
+    if (!key) return this.tracks.library ? this.trackView(this.tracks.library, 0) : PLACEHOLDER_VIEWS.home;
+    const still = this.stateTracks[key];
+    return still ? this.trackView(still, 0) : ADJUSTED_VIEWS[key];
   }
 
   // ── Flow ────────────────────────────────────────────────────────
   enter() {
     this.group.visible = true;
     this.app.scroll.disable();
+    // Testing aid: ?visited=bookshelf,ceiling starts in that adjusted view.
+    const pre = new URLSearchParams(location.search).get("visited");
+    if (pre) for (const a of pre.split(",")) if (AREAS.includes(a)) this.visited.add(a);
+    if (this.visited.size >= AREAS.length) this.visited.clear();
+    this.applyAdjustedHome();
     this.setHomeCamera();
     this.state = "idle";
     this.showHotspots(true);
@@ -263,25 +312,29 @@ export class Library {
     this.scenes[area].enter();
   }
 
-  // Called by an area scene when the visitor asks to go back.
+  // Called by an area scene when the visitor asks to go back. Returning from
+  // the last unvisited area ends the experience instead.
   async returnHome() {
     if (this.state !== "area") return;
     const area = this.area;
     this.state = "moving";
     await this.scenes[area].exit();
-    await this.moveCamera(area, false);
     this.visited.add(area);
+    if (this.visited.size === AREAS.length) {
+      this.state = "ended";
+      await playEnding();
+      return;
+    }
     this.applyAdjustedHome();
+    await this.moveCamera(area, false);
     this.area = null;
     this.state = "idle";
     this.showHotspots(true);
   }
 
-  // The "adjusted version" of the home page will be described later.
-  // For now this only records which areas have been visited.
   applyAdjustedHome() {
-    document.body.dataset.visited = [...this.visited].join(" ");
-    document.body.classList.add("library-returned");
+    document.body.dataset.visited = this.visitedKey();
+    document.body.classList.toggle("library-returned", this.visited.size > 0);
   }
 
   // ── Pointer ─────────────────────────────────────────────────────

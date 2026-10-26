@@ -21,6 +21,16 @@ export const ASSETS = {
     toBookshelf: "assets/cameras/library-to-bookshelf.glb", // played forward in, backward out
     toCeiling: "assets/cameras/library-to-ceiling.glb",
     toDesk: "assets/cameras/library-to-desk.glb",
+    // Adjusted library views (first frame used as a still), keyed by the
+    // areas already visited, alphabetical, joined with "+".
+    libraryAfter: {
+      bookshelf: "assets/cameras/library-after-bookshelf.glb",
+      ceiling: "assets/cameras/library-after-ceiling.glb",
+      desk: "assets/cameras/library-after-desk.glb",
+      "bookshelf+ceiling": "assets/cameras/library-after-bookshelf-ceiling.glb",
+      "bookshelf+desk": "assets/cameras/library-after-bookshelf-desk.glb",
+      "ceiling+desk": "assets/cameras/library-after-ceiling-desk.glb",
+    },
   },
   // Not used yet. When these arrive they replace the placeholder geometry.
   libraryModel: null,
