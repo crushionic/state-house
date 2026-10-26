@@ -18,7 +18,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 
 ## Experience flow
 
-1. **Intro:** a text-only Enter button (no frame) on a glowing white screen (`#intro`).
+1. **Intro:** a text-only Enter button (no frame) on a glowing white screen (`#intro`). **No loading text.** Clicking Enter fades the word away; the screen stays white until the splat has loaded, then fades into the scene.
 2. **Opening:** scroll scrubs `assets/cameras/opening.glb` through the splat (`assets/splat.spz`). The path is: inside the doors, up the stairs, down a hallway with large paintings on both sides. Near the end it fades to glowing white, then into the library. **No text in the opening** (owner's request): `OPENING.text` is empty; the card mechanism remains for later.
 3. **Library home:** three clickable areas (desk, bookshelves, ceiling). The triggers are glowing dots with **no text labels** (the names are `aria-label`s only), each placed at the **centre of its area's on-screen extent**: `Library.areaCenter()` projects the area's bounding box, clips it to the viewport and takes the middle. Visitors can also click the 3D objects. **Framing (owner's direction):** the upper back corner where the bookshelf wall meets the ceiling sits horizontally centred, 40% down the viewport. The placeholder home view does this with `frame: { point, y }` in `PLACEHOLDER_VIEWS`, solved from vertical FOV so it holds at any aspect. On narrow screens the desk trigger can fall off the right edge.
    - **Bookshelves:**
@@ -29,13 +29,14 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
      - Scrolling up reopens the book. A button to the right of the book returns to the library.
    - **Ceiling:** the camera shifts up.
      - Elements are matte (not glowing), with an outline glow at 50% opacity that eases to 100% on hover or keyboard focus.
-     - Clicking one opens the enlarged view, then its outline glow fades away; the element itself stays but can't be clicked again. (No white void: the owner removed that.)
-     - **Return to library** (top right) appears only after every element has been clicked and its detail closed.
+     - Clicking one **zooms the camera in** so the element sits centred on screen (looking straight up, keeping the ceiling view's sense of up; it fills `ZOOM_FILL` = 36% of the screen height). Its information appears in a bubble **underneath**, with a × exit button (Escape also works). This is an owner-directed move, computed from the element, not a Claude-invented shot.
+     - Closing zooms back out to the ceiling view; the element's outline glow fades away; it stays visible but can't be clicked again. (No white void, no popup: the owner removed both.)
+     - **Return to library** appears in the **centre of the screen** only after every element has been seen and the camera is back at the ceiling view.
      - Each element has an invisible disc hit area (so a ring's hole still counts) and an invisible, keyboard-focusable button over it.
    - **Desk:** the camera faces the desk. A distorted but not creepy figure talks through a branching dialog.
-     - The figure's lines appear in a **speech bubble to the left of its head**, with a tail pointing at it.
-     - The reply options are separate, sitting **on the desk below** (projected from the desk's front edge).
-     - A return button appears top right after the dialog ends.
+     - The figure's lines appear in a **speech bubble to the left of its head**, with a tail pointing at it. **The line changes with each reply** (each dialog node has its own lorem passage in `DIALOG`).
+     - The reply options are separate, **centred under the bubble horizontally** and at the height of the desk's front edge.
+     - When the dialog ends, **Return to library takes the replies' place** (no Close button, no corner button).
    - **Returning** goes to an "adjusted version" of the library home. The owner will describe it later. For now `Library.applyAdjustedHome()` only records visited areas (`body[data-visited]`, `body.library-returned`).
 
 ## File map

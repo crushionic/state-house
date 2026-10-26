@@ -114,8 +114,17 @@ export const DIALOG = {
         { label: "Sit amet consectetur", next: "n3" },
       ],
     },
-    n2: { text: LOREM, choices: [{ label: "Adipiscing elit", next: "n4" }] },
-    n3: { text: LOREM, choices: [{ label: "Sed do eiusmod", next: "n4" }] },
-    n4: { text: LOREM, end: true },
+    n2: {
+      text: "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+      choices: [{ label: "Adipiscing elit", next: "n4" }],
+    },
+    n3: {
+      text: "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+      choices: [{ label: "Sed do eiusmod", next: "n4" }],
+    },
+    n4: {
+      text: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.",
+      end: true,
+    },
   },
 };

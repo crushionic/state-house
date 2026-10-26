@@ -1,6 +1,7 @@
 // Desk: a softly distorted glowing figure behind the desk talks with the
-// visitor through a short branching dialog. When the dialog is done, a
-// return button appears in the upper right corner.
+// visitor through a short branching dialog, in a speech bubble beside its
+// head; the line changes with each reply. Replies sit on the desk, centred
+// under the bubble, and the return button takes their place at the end.
 import * as THREE from "three";
 import { ASSETS, DIALOG } from "../config.js";
 import { el, placeholderNote, toScreen } from "../ui.js";
@@ -62,13 +63,7 @@ export class DeskView {
     this.text = el("p", { class: "dialog-text" });
     this.bubble = el("div", { class: "speech-bubble", "aria-live": "polite" }, this.text);
     this.choices = el("div", { class: "dialog-choices", role: "group", "aria-label": "Replies" });
-    this.returnButton = el("button", {
-      type: "button",
-      class: "return-button corner",
-      text: "Return to library",
-      onclick: () => library.returnHome(),
-    });
-    document.body.append(this.bubble, this.choices, this.returnButton);
+    document.body.append(this.bubble, this.choices);
   }
 
   enter() {
@@ -84,27 +79,21 @@ export class DeskView {
     this.speak = 1;
     this.text.textContent = node.text;
     this.choices.replaceChildren();
+    // When the conversation is over, the return button takes the replies' place.
     const options = node.end
-      ? [{ label: "Close", done: true }]
+      ? [{ label: "Return to library", back: true }]
       : node.choices;
     for (const c of options) {
       this.choices.append(
         el("button", {
           type: "button",
-          class: "dialog-choice",
+          class: c.back ? "dialog-choice dialog-return" : "dialog-choice",
           text: c.label,
-          onclick: () => (c.done ? this.finish() : this.show(c.next)),
+          onclick: () => (c.back ? this.library.returnHome() : this.show(c.next)),
         }),
       );
     }
     this.choices.querySelector("button")?.focus({ preventScroll: true });
-  }
-
-  finish() {
-    this.bubble.classList.remove("is-visible");
-    this.choices.classList.remove("is-visible");
-    this.returnButton.classList.add("is-visible");
-    this.returnButton.focus({ preventScroll: true });
   }
 
   update(dt) {
@@ -124,15 +113,20 @@ export class DeskView {
       const width = Math.max(160, Math.min(352, room));
       const x = Math.max(12 + width, head.x - 16);
       Object.assign(this.bubble.style, { width: `${width}px`, transform: `translate(${x}px, ${head.y}px) translate(-100%, -50%)` });
+      this.bubbleCenterX = x - width / 2;
     }
+    // Replies: centred under the bubble, at the height of the desk's front edge.
     const desk = toScreen(DESK_FRONT, cam);
-    if (desk) this.choices.style.transform = `translate(${desk.x}px, ${desk.y}px) translate(-50%, 0)`;
+    if (desk) {
+      const cx = this.bubbleCenterX ?? desk.x;
+      this.choices.style.maxWidth = `${Math.max(160, 2 * Math.min(cx, window.innerWidth - cx) - 24)}px`;
+      this.choices.style.transform = `translate(${cx}px, ${desk.y}px) translate(-50%, 0)`;
+    }
   }
 
   async exit() {
     this.active = false;
     this.bubble.classList.remove("is-visible");
     this.choices.classList.remove("is-visible");
-    this.returnButton.classList.remove("is-visible");
   }
 }

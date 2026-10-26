@@ -29,33 +29,23 @@ const app = { renderer, scene, camera, spark, look, scroll };
 // ── Scenes ───────────────────────────────────────────────────────
 const intro = document.getElementById("intro");
 const enterButton = document.getElementById("enter");
-const status = document.getElementById("intro-status");
-
-let loadText = "";
-const opening = new Opening(app, {
-  onProgress: (e) => {
-    loadText = e.lengthComputable && e.total
-      ? `Loading ${Math.round((e.loaded / e.total) * 100)}%`
-      : `Loading ${(e.loaded / 1e6).toFixed(1)} MB`;
-    if (enterButton.disabled) status.textContent = loadText;
-  },
-});
+const opening = new Opening(app, { onProgress: () => {} });
 const library = new Library(app);
 
 let current = "intro";
 let fade = 1; // white used for transitions (1 = fully white)
 
+// Enter fades away; the screen stays white until the splat has loaded, then
+// fades into the scene. No loading text is shown.
 async function startOpening() {
   enterButton.disabled = true;
-  status.textContent = loadText || "Loading";
+  enterButton.classList.add("is-fading");
   try {
     await opening.ready;
   } catch (err) {
-    console.error(err);
-    status.textContent = "The scene couldn't be loaded.";
+    console.error("The opening scene couldn't be loaded:", err);
     return;
   }
-  status.textContent = "";
   intro.classList.add("is-leaving");
   current = "opening";
   opening.enter();
