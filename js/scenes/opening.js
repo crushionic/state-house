@@ -30,6 +30,9 @@ export class Opening {
       this.textLayer.append(card);
       return { at: t.at, el: card };
     });
+    // Owner's text: shown at the top centre until the visitor starts scrolling.
+    this.hint = el("p", { class: "scroll-hint", text: "scroll to begin" });
+    this.textLayer.append(this.hint);
     document.body.append(this.textLayer);
 
     this.ready = Promise.all([this.splat.initialized, loadCameraTrack(ASSETS.cameras.opening)]).then(
@@ -92,6 +95,7 @@ export class Opening {
     if (this.track) this.track.apply(p, this.app.camera);
     else this.controls?.update();
 
+    this.hint.style.opacity = 1 - range(p, 0.005, 0.04);
     for (const c of this.cards) {
       const d = Math.abs(p - c.at);
       c.el.style.opacity = 1 - range(d, 0.04, 0.09);

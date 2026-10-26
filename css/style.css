@@ -92,6 +92,19 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 /* ── Opening text ── */
 .opening-text { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: none; }
 .opening-text.is-active { display: block; }
+.scroll-hint {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-family: var(--body);
+  font-size: 1em;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  text-shadow: 0 0 12px #fff, 0 0 4px #fff;
+  white-space: nowrap;
+}
 .text-card {
   position: absolute;
   left: 50%;
