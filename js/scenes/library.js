@@ -64,7 +64,7 @@ const ADJUSTED_VIEWS = {
   desk: { pos: v3(0, 1.6, 2.6), look: v3(-2.6, 2.6, -2.6), fov: 60, slivers: ["desk"] },
   // After two: move toward the last area so it dominates, keeping both
   // visited areas visible as small clickable patches (checked at 16:9 and 4:3).
-  "bookshelf+ceiling": { pos: v3(1.86, 1.01, -3.2), look: v3(1.35, 1.08, -2.29), fov: 60, keepWidth: true },
+  "bookshelf+ceiling": { pos: v3(2.11, 1.01, -1.9), look: v3(-0.24, 1.61, -4.79), fov: 60, keepWidth: true },
   "bookshelf+desk": { pos: v3(-1.53, 3.18, 2.4), look: v3(-0.97, 3.4, -1.5), fov: 60, keepWidth: true },
   "ceiling+desk": { pos: v3(0.54, 1.01, -3.58), look: v3(-4.05, 1.53, 0.25), fov: 60, keepWidth: true },
 };
