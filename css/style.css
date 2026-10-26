@@ -198,6 +198,7 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .ceiling-info h2 { margin: 0 0 0.4rem; font-family: var(--body); font-weight: normal; font-size: 1.25em; }
 .ceiling-info p { margin: 0; line-height: 1.6; font-family: var(--body); font-size: 1em; color: var(--ink-soft); }
 .info-close {
+  border-radius: 50%;
   position: absolute;
   top: 0.4rem;
   right: 0.5rem;
