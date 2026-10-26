@@ -37,7 +37,18 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
      - The figure's lines appear in a **speech bubble to the left of its head**, with a tail pointing at it. **The line changes with each reply** (each dialog node has its own lorem passage in `DIALOG`).
      - The reply options are separate, **centred under the bubble horizontally** and at the height of the desk's front edge.
      - When the dialog ends, **Return to library takes the replies' place** (no Close button, no corner button).
-   - **Returning** goes to an "adjusted version" of the library home. The owner will describe it later. For now `Library.applyAdjustedHome()` only records visited areas (`body[data-visited]`, `body.library-returned`).
+   - **Adjusted menus (owner's direction).** Returning to the library shows a view that depends on which areas have been visited (`Library.visitedKey()`, e.g. `"bookshelf+desk"`):
+     - **After one area**, the viewer stays where they stood and **turns**:
+       - after the bookshelves → right (bookshelves become a ~10% sliver on the left)
+       - after the ceiling → down (ceiling a ~10% sliver at the top)
+       - after the desk → left (desk a ~10% sliver on the right)
+       These views have `slivers`; `Library.resolveView()` solves yaw/pitch live (Newton's method on projected area extents, counting only the on-screen part) so the sliver's inner edge sits exactly on its 10% line at any screen shape.
+     - **After two areas**, the camera moves toward the last unvisited area so it dominates, with both visited areas still visible as small clickable patches. These are fixed look-at views marked `keepWidth` (they keep their 4:3 width on portrait screens so the side patches don't fall off).
+     - Placeholder poses were found by optimising true on-screen coverage (ray-cast grid) in the placeholder room, checked at 16:9, 4:3, 21:9 and 9:16. In this sparse room the "90%" is approximate (the last area fills ~30–40% of pixels; blank walls fill the rest). The real library model and Blender stills will define the true framing.
+     - Every area stays clickable through its patch; revisiting an area doesn't change the visited state.
+     - Blender stills per state can replace the placeholders: `ASSETS.cameras.libraryAfter` (`assets/cameras/library-after-<areas>.glb`, first frame used). Area-to-area Blender moves start from the first library view, so the adjusted views are linked to them with a short glide.
+     - Testing aid: `?start=library&visited=bookshelf,ceiling` opens straight into an adjusted view.
+   - **Ending.** Returning from the **last** unvisited area doesn't go back to the library: `js/ending.js` fades to white (1.5 s), holds 2 s, the white shrinks into a black screen (1.8 s), then **"What are we forgetting?"** glows in the centre in Scotch Text Condensed (owner-supplied text).
 
 ## File map
 
@@ -50,6 +61,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 | `js/look.js` | Post-processing: bloom + haze shader (soft edges, desaturation, lift to white, white edge glow, grain, fade-to-white). `?look` opens a tuning panel; `?nofx` disables post-processing |
 | `js/camera-track.js` | Loads a Blender `.glb` camera animation; `apply(t, camera)` places the camera at t ∈ [0,1]. Optional `splat_anchor` Empty sets the splat transform |
 | `js/scroll.js` | `ScrollDriver`: page scroll → smoothed 0–1 progress for the active scroll scene; locks scrolling otherwise |
+| `js/ending.js` | The ending sequence (white → hold → shrink to black → glowing question) |
 | `js/ui.js` | DOM helper `el()`, placeholder notes, world→screen projection, `tween`, easing |
 | `js/scenes/opening.js` | Splat + scroll-scrubbed camera + text cards + fade to white. Without a track: neutral auto-framed view with drag-to-orbit (no zoom, so the wheel still scrolls) |
 | `js/scenes/library.js` | Placeholder room, area hotspots, raycast picking, camera moves between home and areas (Blender track forward/backward, or placeholder glide) |
@@ -136,5 +148,5 @@ How tracks are read and aligned:
 - Blender camera exports (five files), plus the one-time `importCorrection` calibration.
 - Library model (`ASSETS.libraryModel`; possibly a splat), book model, figure model.
 - Real text for the opening cards, map captions, right-page text, ceiling items and dialog.
-- The spec for the adjusted library home after returning from an area.
+- Blender stills for the six adjusted library views (optional; placeholders work without them).
 - Optional: animated focal length from Blender, which needs `KHR_animation_pointer` support.

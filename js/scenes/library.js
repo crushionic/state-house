@@ -43,19 +43,48 @@ function viewQuat(view) {
 
 // Adjusted library views after areas have been visited (owner's direction),
 // keyed by the visited areas in alphabetical order joined with "+".
-// After one area: the two unvisited areas fill ~90% of the screen and the
-// visited one is a ~10% sliver on its side (bookshelf left, ceiling top,
-// desk right). After two: the last unvisited area fills ~90%, with both
-// visited areas as slivers. Solved numerically for the placeholder room;
-// Blender stills (ASSETS.cameras.libraryAfter) replace them.
-const ADJUSTED_VIEWS = {
-  bookshelf: { pos: v3(1.81, 1.2, -0.93), look: v3(0.88, 2.1, -3.64), fov: 60 },
-  ceiling: { pos: v3(2.4, 1.22, -0.96), look: v3(-0.05, 1.17, -2.7), fov: 60 },
-  desk: { pos: v3(-0.63, 1.2, 1.55), look: v3(-1.9, 1.8, -1.1), fov: 60 },
-  "bookshelf+ceiling": { pos: v3(1.59, 1.02, -1.82), look: v3(0.29, 1.53, -4.48), fov: 60 },
-  "bookshelf+desk": { pos: v3(0.17, 0.9, -1.97), look: v3(-0.18, 3.8, -2.69), fov: 60 },
-  "ceiling+desk": { pos: v3(-3.16, 2.91, -2.72), look: v3(-1.25, 2.21, -4.93), fov: 60 },
+// After one area: the two unvisited areas fill the frame and the visited one
+// is a ~10% sliver on its side (bookshelf left, ceiling top, desk right).
+// After two: the last unvisited area dominates, with both visited areas still
+// visible as small patches. Views with `slivers` are aimed live for the
+// window's shape so each sliver's inner edge sits exactly on its 10% line.
+// Chosen for the placeholder room; Blender stills replace them.
+const SLIVER = {
+  bookshelf: { edge: "u1", at: 0.1 }, // left 10%: right edge of the shelves
+  ceiling: { edge: "v1", at: 0.1 }, // top 10%: lower edge of the ceiling
+  desk: { edge: "u0", at: 0.9 }, // right 10%: left edge of the desk
 };
+const VERTICAL = (s) => s.edge === "v0" || s.edge === "v1";
+const ADJUSTED_VIEWS = {
+  // After one area: stay where the visitor stood and turn — right after the
+  // bookshelves, down after the ceiling, left after the desk — solved live so
+  // the visited area's sliver edge sits on its 10% line.
+  bookshelf: { pos: v3(0, 1.6, 2.6), look: v3(1.2, 2.6, -2.6), fov: 60, slivers: ["bookshelf"] },
+  ceiling: { pos: v3(0, 1.6, 2.6), look: v3(-0.6, 1.2, -2.6), fov: 60, slivers: ["ceiling"] },
+  desk: { pos: v3(0, 1.6, 2.6), look: v3(-2.6, 2.6, -2.6), fov: 60, slivers: ["desk"] },
+  // After two: move toward the last area so it dominates, keeping both
+  // visited areas visible as small clickable patches (checked at 16:9 and 4:3).
+  "bookshelf+ceiling": { pos: v3(1.86, 1.01, -3.2), look: v3(1.35, 1.08, -2.29), fov: 60, keepWidth: true },
+  "bookshelf+desk": { pos: v3(-1.53, 3.18, 2.4), look: v3(-0.97, 3.4, -1.5), fov: 60, keepWidth: true },
+  "ceiling+desk": { pos: v3(0.54, 1.01, -3.58), look: v3(-4.05, 1.53, 0.25), fov: 60, keepWidth: true },
+};
+
+// Solve A x = b for a small dense system (Gaussian elimination).
+function solveLinear(A, b, n) {
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = M[r][c] / M[c][c];
+      for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  return M.map((row, i) => row[n] / row[i]);
+}
 
 const TRACK_FOR = { bookshelf: "toBookshelf", ceiling: "toCeiling", desk: "toDesk" };
 const AREAS = ["bookshelf", "ceiling", "desk"];
@@ -101,6 +130,10 @@ export class Library {
     const canvas = app.renderer.domElement;
     canvas.addEventListener("click", (e) => this.onCanvasClick(e));
     canvas.addEventListener("pointermove", (e) => this.onPointerMove(e));
+    // Adjusted views depend on the screen's shape; re-aim after a resize.
+    window.addEventListener("resize", () => requestAnimationFrame(() => {
+      if (this.group.visible && this.state === "idle") this.setHomeCamera();
+    }));
   }
 
   // ── Placeholder geometry ─────────────────────────────────────────
@@ -218,12 +251,123 @@ export class Library {
   // ── Camera ──────────────────────────────────────────────────────
   setView(view) {
     const cam = this.app.camera;
-    cam.position.copy(view.pos);
-    cam.quaternion.copy(viewQuat(view));
-    if (view.fov && cam.fov !== view.fov) {
-      cam.fov = view.fov;
+    const r = this.resolveView(view);
+    cam.position.copy(r.pos);
+    cam.quaternion.copy(r.quat);
+    if (cam.fov !== r.fov) {
+      cam.fov = r.fov;
       cam.updateProjectionMatrix();
     }
+  }
+
+  // Position, orientation and FOV for a view. Views with `slivers` are aimed
+  // so each sliver's inner edge lands on its 10% line for this screen shape.
+  resolveView(view) {
+    let fov = view.fov ?? this.app.camera.fov;
+    // Final views keep at least their 4:3 width on narrow (portrait) screens,
+    // so the small visited areas at the sides don't fall off.
+    const aspect = this.app.camera.aspect;
+    if (view.keepWidth && aspect < 4 / 3) {
+      const half = Math.atan((Math.tan(THREE.MathUtils.degToRad(fov / 2)) * (4 / 3)) / aspect);
+      fov = Math.min(110, THREE.MathUtils.radToDeg(2 * half));
+    }
+    if (!view.slivers) return { pos: view.pos, quat: viewQuat(view), fov };
+    const cam = new THREE.PerspectiveCamera(fov, this.app.camera.aspect, 0.01, 200);
+    cam.position.copy(view.pos);
+    const e = new THREE.Euler().setFromQuaternion(viewQuat(view), "YXZ");
+    const spec = (a) => view.edges?.[a] ?? SLIVER[a];
+    const horizontal = view.slivers.filter((a) => !VERTICAL(spec(a)));
+    const vertical = view.slivers.filter((a) => VERTICAL(spec(a)));
+    // Unknowns: yaw for a side sliver, pitch for the ceiling sliver, and FOV
+    // when there are slivers on both sides.
+    const keys = [];
+    if (horizontal.length) keys.push("yaw");
+    if (vertical.length) keys.push("pitch");
+    if (horizontal.length === 2 || vertical.length === 2) keys.push("fov");
+    const x = { yaw: e.y, pitch: e.x, fov };
+    const apply = () => {
+      cam.quaternion.setFromEuler(new THREE.Euler(x.pitch, x.yaw, 0, "YXZ"));
+      cam.fov = x.fov;
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+    };
+    const residual = () => {
+      apply();
+      // Only the part of the area that's actually on screen counts: side
+      // slivers use points within the screen's height, the ceiling within its width.
+      return view.slivers.map((a) => {
+        const sp = spec(a);
+        const v = this.screenExtent(a, cam, VERTICAL(sp) ? "u" : "v")[sp.edge];
+        return (isFinite(v) ? v : sp.edge.endsWith("0") ? 2 : -1) - sp.at;
+      });
+    };
+    // Newton's method with a numerical Jacobian (2–3 unknowns).
+    for (let it = 0; it < 40; it++) {
+      const r = residual();
+      if (Math.max(...r.map(Math.abs)) < 1e-4) break;
+      const J = keys.map((k) => {
+        const h = k === "fov" ? 0.05 : 1e-3;
+        x[k] += h;
+        const r2 = residual();
+        x[k] -= h;
+        return r2.map((v, i) => (v - r[i]) / h);
+      }); // J[k][i] = d r_i / d x_k
+      const n = keys.length;
+      const m = r.length;
+      // least squares: (JᵀJ) dx = -Jᵀ r
+      const A = keys.map((_, a) => keys.map((_, b) => J[a].reduce((sum, _v, i) => sum + J[a][i] * J[b][i], 0)));
+      const g = keys.map((_, a) => -J[a].reduce((sum, _v, i) => sum + J[a][i] * r[i], 0));
+      const dx = solveLinear(A, g, n) ?? g.map(() => 0);
+      keys.forEach((k, a) => {
+        const limit = k === "fov" ? 8 : 0.2;
+        x[k] += Math.max(-limit, Math.min(limit, dx[a]));
+      });
+      x.fov = Math.max(30, Math.min(100, x.fov));
+      if (m === 0) break;
+    }
+    apply();
+    return { pos: view.pos, quat: cam.quaternion.clone(), fov: x.fov };
+  }
+
+  // On-screen extent of an area (0–1, not clipped to the screen), from points
+  // on its bounding box that are in front of the camera. `within` ("u" or "v")
+  // keeps only points inside the screen along that axis.
+  screenExtent(id, cam, within = null) {
+    if (!this.areaSamples) {
+      this.areaSamples = {};
+      for (const [key, root] of Object.entries(this.areaRoots)) {
+        root.updateWorldMatrix(true, true);
+        const b = new THREE.Box3().setFromObject(root);
+        const pts = [];
+        const N = 6;
+        const L = (lo, hi, t) => lo + (hi - lo) * t;
+        for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+          const a = i / N, c = j / N;
+          pts.push(
+            new THREE.Vector3(b.min.x, L(b.min.y, b.max.y, a), L(b.min.z, b.max.z, c)),
+            new THREE.Vector3(b.max.x, L(b.min.y, b.max.y, a), L(b.min.z, b.max.z, c)),
+            new THREE.Vector3(L(b.min.x, b.max.x, a), b.min.y, L(b.min.z, b.max.z, c)),
+            new THREE.Vector3(L(b.min.x, b.max.x, a), b.max.y, L(b.min.z, b.max.z, c)),
+            new THREE.Vector3(L(b.min.x, b.max.x, a), L(b.min.y, b.max.y, c), b.min.z),
+            new THREE.Vector3(L(b.min.x, b.max.x, a), L(b.min.y, b.max.y, c), b.max.z),
+          );
+        }
+        this.areaSamples[key] = pts;
+      }
+    }
+    const v = new THREE.Vector3();
+    const out = { u0: Infinity, u1: -Infinity, v0: Infinity, v1: -Infinity };
+    for (const p of this.areaSamples[id]) {
+      v.copy(p).project(cam);
+      if (v.z < -1 || v.z > 1) continue;
+      const u = v.x * 0.5 + 0.5;
+      const w = 0.5 - v.y * 0.5;
+      if (within === "u" && (u < 0 || u > 1)) continue;
+      if (within === "v" && (w < 0 || w > 1)) continue;
+      out.u0 = Math.min(out.u0, u); out.u1 = Math.max(out.u1, u);
+      out.v0 = Math.min(out.v0, w); out.v1 = Math.max(out.v1, w);
+    }
+    return out;
   }
 
   // Which adjusted view applies: visited areas, sorted, joined with "+".
@@ -241,9 +385,10 @@ export class Library {
     const cam = this.app.camera;
     const p0 = cam.position.clone();
     const q0 = cam.quaternion.clone();
-    const q1 = viewQuat(view);
+    const target = this.resolveView(view);
+    const q1 = target.quat;
     const fov0 = cam.fov;
-    const fov1 = view.fov ?? fov0;
+    const fov1 = target.fov;
     await tween(seconds, (t) => {
       const k = ease.inOut(t);
       cam.position.lerpVectors(p0, view.pos, k);
