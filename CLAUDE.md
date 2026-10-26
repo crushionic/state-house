@@ -37,18 +37,32 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
      - The figure's lines appear in a **speech bubble to the left of its head**, with a tail pointing at it. **The line changes with each reply** (each dialog node has its own lorem passage in `DIALOG`).
      - The reply options are separate, **centred under the bubble horizontally** and at the height of the desk's front edge.
      - When the dialog ends, **Return to library takes the replies' place** (no Close button, no corner button).
-   - **Adjusted menus (owner's direction).** Returning to the library shows a view that depends on which areas have been visited (`Library.visitedKey()`, e.g. `"bookshelf+desk"`):
-     - **After one area**, the viewer stays where they stood and **turns**:
-       - after the bookshelves → right (bookshelves become a ~10% sliver on the left)
-       - after the ceiling → down (ceiling a ~10% sliver at the top)
-       - after the desk → left (desk a ~10% sliver on the right)
-       These views have `slivers`; `Library.resolveView()` solves yaw/pitch live (Newton's method on projected area extents, counting only the on-screen part) so the sliver's inner edge sits exactly on its 10% line at any screen shape.
-     - **After two areas**, the camera moves toward the last unvisited area so it dominates, with both visited areas still visible as small clickable patches. These are fixed look-at views marked `keepWidth` (they keep their 4:3 width on portrait screens so the side patches don't fall off).
-     - Placeholder poses were found by optimising true on-screen coverage (ray-cast grid) in the placeholder room, checked at 16:9, 4:3, 21:9 and 9:16. In this sparse room the "90%" is approximate (the last area fills ~30–40% of pixels; blank walls fill the rest). The real library model and Blender stills will define the true framing.
+   - **Adjusted menus (owner's direction).** Returning to the library shows a view that depends on which areas have been visited (`Library.visitedKey()`, e.g. `"bookshelf+desk"`). Rules from the owner:
+     - **Never show the open fourth wall** (the side behind the viewer at the start, z = 3; the placeholder room has no wall there).
+     - **Zoom in** so the remaining areas fill the screen instead of unused walls.
+     - **After one area**, the two remaining areas fill the frame and the visited one is a ~10% sliver:
+       - after the bookshelves → shelves as a left sliver (solved live onto the 10% line)
+       - after the ceiling → ceiling as a top sliver (solved live)
+       - after the desk → shifted left to the shelves and ceiling, with the desk's near end at the lower right. This is a fixed view: with the long desk, an exact right-edge line would expose the open front wall.
+     - **After two areas**, the last area dominates and both visited areas stay visible as small clickable patches:
+       - **Desk last:** faces the desk.
+       - **Ceiling last:** from near the floor, looking up, for a direct view of the ceiling.
+       - **Bookshelves last:** the whole shelf side plus the desk's near end.
+     - **Mechanics:**
+       - Views with `slivers` use `Library.resolveView()` to solve yaw/pitch live (Newton's method on projected area extents, counting only the on-screen part).
+       - Views marked `keepWidth` keep their 4:3 width on portrait screens.
+     - **How the poses were chosen:** by optimising true on-screen coverage (ray-cast grid, with "void" = the open side) at 16:9, 4:3 and 21:9, then checked at 9:16. No view shows the open side at any of those shapes.
+       - **Known gap:** on tall phone screens the desk-last view can't keep the bookshelf patch while facing the desk.
+       - **"90%" is approximate:** in this sparse placeholder room, plain wall still takes a share. The real library and Blender stills (`ASSETS.cameras.libraryAfter`, `assets/cameras/library-after-<areas>.glb`) define the true framing.
+     - **Placeholder room changes made for these views:** the desk runs from the right wall to just short of the bookshelves (x −2.75…3.97, like the real one). The ceiling area is the whole ceiling.
      - Every area stays clickable through its patch; revisiting an area doesn't change the visited state.
-     - Blender stills per state can replace the placeholders: `ASSETS.cameras.libraryAfter` (`assets/cameras/library-after-<areas>.glb`, first frame used). Area-to-area Blender moves start from the first library view, so the adjusted views are linked to them with a short glide.
+     - Area-to-area Blender moves start from the first library view, so the adjusted views are linked to them with a short glide.
      - Testing aid: `?start=library&visited=bookshelf,ceiling` opens straight into an adjusted view.
-   - **Ending.** Returning from the **last** unvisited area doesn't go back to the library: `js/ending.js` fades to white (1.5 s), holds 2 s, the white shrinks into a black screen (1.8 s), then **"What are we forgetting?"** glows in the centre in Scotch Text Condensed (owner-supplied text).
+   - **Ending.** Returning from the **last** unvisited area plays `js/ending.js`:
+     1. Fade to white (1.5 s), hold **1.25 s**.
+     2. The white **flows like liquid into the words "What are we forgetting?"** on black. This is a metaball field: about 1,200 soft blobs start packed edge to edge, flow (edges first) to points sampled inside the text's letter shapes and shrink. Each frame the summed field is thresholded on a ~420 px wide canvas, scaled up with a glow.
+     3. The crisp Scotch Text Condensed text cross-fades in.
+     4. A **"Back to beginning"** text button fades in at the bottom centre and reloads the site from the start (URL options dropped).
 
 ## File map
 
@@ -61,7 +75,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 | `js/look.js` | Post-processing: bloom + haze shader (soft edges, desaturation, lift to white, white edge glow, grain, fade-to-white). `?look` opens a tuning panel; `?nofx` disables post-processing |
 | `js/camera-track.js` | Loads a Blender `.glb` camera animation; `apply(t, camera)` places the camera at t ∈ [0,1]. Optional `splat_anchor` Empty sets the splat transform |
 | `js/scroll.js` | `ScrollDriver`: page scroll → smoothed 0–1 progress for the active scroll scene; locks scrolling otherwise |
-| `js/ending.js` | The ending sequence (white → hold → shrink to black → glowing question) |
+| `js/ending.js` | The ending: white → 1.25 s hold → liquid metaball morph into the question → crisp text → Back to beginning |
 | `js/ui.js` | DOM helper `el()`, placeholder notes, world→screen projection, `tween`, easing |
 | `js/scenes/opening.js` | Splat + scroll-scrubbed camera + text cards + fade to white. Without a track: neutral auto-framed view with drag-to-orbit (no zoom, so the wheel still scrolls) |
 | `js/scenes/library.js` | Placeholder room, area hotspots, raycast picking, camera moves between home and areas (Blender track forward/backward, or placeholder glide) |
@@ -104,7 +118,7 @@ How tracks are read and aligned:
 
 ## Placeholder library room (`library.js`)
 
-- **Scale and layout:** meters. Room x ∈ [−4, 4], z ∈ [−5, 3], height 4.2. Shelves on the left wall; the book slot is on the middle shelf at z = −1.5. Desk at (1.2, 0.76, −2.6), with the figure behind it. Four ceiling elements at y ≈ 4.15.
+- **Scale and layout:** meters. Room x ∈ [−4, 4], z ∈ [−5, 3], height 4.2, with no wall at z = 3 (the open side, never shown). Shelves on the left wall; the book slot is on the middle shelf at z = −1.5. A long desk along z = −2.6 from x −2.75 to 3.97 (top at y 0.76), with the figure behind it at x 1.2. The ceiling area is the whole ceiling, with four elements at y ≈ 4.15.
 - **Placeholder views:** `PLACEHOLDER_VIEWS` holds the home, bookshelf, ceiling and desk views. They exist only for the placeholder room.
 
 ## Assets and hosting constraints
