@@ -317,12 +317,42 @@ export class Library {
     canvas.style.cursor = this.state === "idle" && this.pick(e) ? "pointer" : "";
   }
 
+  // Centre of the part of an area that's on screen, in CSS pixels, so each
+  // trigger sits in the middle of its area whatever the camera shows.
+  areaCenter(id) {
+    if (!this.areaBoxes) {
+      this.areaBoxes = {};
+      for (const [key, root] of Object.entries(this.areaRoots)) {
+        root.updateWorldMatrix(true, true);
+        this.areaBoxes[key] = new THREE.Box3().setFromObject(root);
+      }
+    }
+    const box = this.areaBoxes[id];
+    const cam = this.app.camera;
+    cam.updateMatrixWorld();
+    const v = new THREE.Vector3();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+      v.set(x, y, z).project(cam);
+      if (v.z < -1 || v.z > 1) continue; // behind the camera
+      x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x);
+      y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
+    }
+    x0 = Math.max(x0, -1); x1 = Math.min(x1, 1);
+    y0 = Math.max(y0, -1); y1 = Math.min(y1, 1);
+    if (!(x0 < x1 && y0 < y1)) return null;
+    return {
+      x: ((x0 + x1) / 2 * 0.5 + 0.5) * window.innerWidth,
+      y: (-(y0 + y1) / 2 * 0.5 + 0.5) * window.innerHeight,
+    };
+  }
+
   update(dt) {
     if (!this.group.visible) return;
     if (this.state === "idle") {
       for (const h of this.hotspots) {
-        const s = toScreen(this.anchors[h.id], this.app.camera);
-        h.button.style.visibility = s && s.inView ? "" : "hidden";
+        const s = this.areaCenter(h.id);
+        h.button.style.visibility = s ? "" : "hidden";
         if (s) h.button.style.transform = `translate(${s.x}px, ${s.y}px)`;
       }
     }

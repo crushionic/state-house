@@ -61,11 +61,9 @@ export const OPENING = {
   splatRotation: [180, 0, 0],
   scrollScreens: 10,    // total scroll length, in screen heights
   fadeStart: 0.86,      // where the fade to white begins (0–1 of the scroll)
-  // Placeholder text cards along the scroll. `at` is 0–1 of the scroll.
-  text: [
-    { at: 0.15, body: LOREM },
-    { at: 0.5, body: LOREM },
-  ],
+  // Text cards along the scroll, e.g. { at: 0.5, body: "…" } (`at` is 0–1 of
+  // the scroll). Empty: the owner wants no text in the opening for now.
+  text: [],
 };
 
 // ── Library home ─────────────────────────────────────────────────

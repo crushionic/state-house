@@ -19,8 +19,8 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 ## Experience flow
 
 1. **Intro:** a text-only Enter button (no frame) on a glowing white screen (`#intro`).
-2. **Opening:** scroll scrubs `assets/cameras/opening.glb` through the splat (`assets/splat.spz`). The path is: inside the doors, up the stairs, down a hallway with large paintings on both sides. Near the end it fades to glowing white, then into the library.
-3. **Library home:** three clickable areas (desk, bookshelves, ceiling). The triggers are glowing dots with **no text labels** (the names are `aria-label`s only); visitors can also click the 3D objects. **Framing (owner's direction):** the upper back corner where the bookshelf wall meets the ceiling sits horizontally centred, 40% down the viewport. The placeholder home view does this with `frame: { point, y }` in `PLACEHOLDER_VIEWS`, solved from vertical FOV so it holds at any aspect. On narrow screens the desk trigger can fall off the right edge.
+2. **Opening:** scroll scrubs `assets/cameras/opening.glb` through the splat (`assets/splat.spz`). The path is: inside the doors, up the stairs, down a hallway with large paintings on both sides. Near the end it fades to glowing white, then into the library. **No text in the opening** (owner's request): `OPENING.text` is empty; the card mechanism remains for later.
+3. **Library home:** three clickable areas (desk, bookshelves, ceiling). The triggers are glowing dots with **no text labels** (the names are `aria-label`s only), each placed at the **centre of its area's on-screen extent**: `Library.areaCenter()` projects the area's bounding box, clips it to the viewport and takes the middle. Visitors can also click the 3D objects. **Framing (owner's direction):** the upper back corner where the bookshelf wall meets the ceiling sits horizontally centred, 40% down the viewport. The placeholder home view does this with `frame: { point, y }` in `PLACEHOLDER_VIEWS`, solved from vertical FOV so it holds at any aspect. On narrow screens the desk trigger can fall off the right edge.
    - **Bookshelves:**
      - The book slides out spine first, comes to the viewer, opens, flips pages and stays open.
      - Clicking its left side unfolds a map.
@@ -29,7 +29,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
      - Scrolling up reopens the book. A button to the right of the book returns to the library.
    - **Ceiling:** the camera shifts up.
      - Elements are matte (not glowing), with an outline glow at 50% opacity that eases to 100% on hover or keyboard focus.
-     - Clicking one opens the enlarged view, then the element dissolves into a soft white void and can't be clicked again.
+     - Clicking one opens the enlarged view, then its outline glow fades away; the element itself stays but can't be clicked again. (No white void: the owner removed that.)
      - **Return to library** (top right) appears only after every element has been clicked and its detail closed.
      - Each element has an invisible disc hit area (so a ring's hole still counts) and an invisible, keyboard-focusable button over it.
    - **Desk:** the camera faces the desk. A distorted but not creepy figure talks through a branching dialog.

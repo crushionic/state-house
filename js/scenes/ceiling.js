@@ -1,8 +1,8 @@
 // Ceiling: placeholder elements on the ceiling. Each has a soft outline glow
 // (50% at rest, easing to 100% on hover). Clicking one shows an enlarged
-// version with information; the element then dissolves into a white void and
-// can't be clicked again. The return button appears once every element has
-// been clicked.
+// version with information; its outline glow then fades away and it can't be
+// clicked again. The return button appears once every element has been
+// clicked.
 import * as THREE from "three";
 import { CEILING } from "../config.js";
 import { el, toScreen, tween, ease } from "../ui.js";
@@ -33,22 +33,6 @@ const SVG = {
 const REST_GLOW = 0.5;
 const HOVER_GLOW = 1;
 
-// Soft white radial patch left behind where an element was.
-function voidTexture() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 256;
-  const g = c.getContext("2d");
-  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grad.addColorStop(0, "rgba(255,255,255,1)");
-  grad.addColorStop(0.45, "rgba(255,255,255,0.85)");
-  grad.addColorStop(1, "rgba(255,255,255,0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 256, 256);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
 export class CeilingView {
   constructor(app, library) {
     this.app = app;
@@ -56,7 +40,6 @@ export class CeilingView {
     this.active = false;
     this.hovered = null;
 
-    const voidMap = voidTexture();
     this.items = CEILING.elements.map((item, i) => {
       const spot = library.ceilingSpots[i % library.ceilingSpots.length];
       const faceDown = (m, dy) => {
@@ -70,7 +53,7 @@ export class CeilingView {
       // the element itself: matte, not glowing
       const mesh = faceDown(new THREE.Mesh(
         SHAPES[item.shape]?.() ?? SHAPES.square(),
-        new THREE.MeshStandardMaterial({ color: 0xe6e2db, roughness: 0.9, side: THREE.DoubleSide, transparent: true }),
+        new THREE.MeshStandardMaterial({ color: 0xe6e2db, roughness: 0.9, side: THREE.DoubleSide }),
       ), 0);
       mesh.userData.item = item;
 
@@ -87,28 +70,13 @@ export class CeilingView {
         }),
       ), 0.005);
 
-      // white void shown after it's been clicked
-      const voidMesh = faceDown(new THREE.Mesh(
-        new THREE.PlaneGeometry(1.0, 1.0),
-        new THREE.MeshBasicMaterial({
-          map: voidMap,
-          color: new THREE.Color(1, 1, 1).multiplyScalar(1.5),
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        }),
-      ), -0.003);
-      voidMesh.visible = false;
-
       // invisible disc so clicks anywhere on the element count (incl. the ring's hole)
       const hitArea = faceDown(new THREE.Mesh(
         new THREE.CircleGeometry(0.42, 32),
         new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }),
       ), -0.001);
 
-      const entry = { item, mesh, outline, voidMesh, hitArea, glow: REST_GLOW, done: false };
+      const entry = { item, mesh, outline, hitArea, glow: REST_GLOW, done: false };
       // Invisible, keyboard-focusable trigger over each element.
       entry.button = el("button", {
         type: "button",
@@ -149,7 +117,8 @@ export class CeilingView {
     this.updateReturn();
   }
 
-  // Click on an element: show it enlarged, then dissolve it into a void.
+  // Click on an element: show it enlarged, then fade its outline glow out.
+  // The element stays, but can't be clicked again.
   select(entry) {
     if (entry.done) return;
     entry.done = true;
@@ -158,16 +127,10 @@ export class CeilingView {
     if (this.hovered === entry) this.hovered = null;
     this.open(entry.item);
 
-    entry.voidMesh.visible = true;
-    tween(1.2, (t) => {
-      const k = ease.inOut(t);
-      entry.mesh.material.opacity = 1 - k;
-      entry.outline.material.opacity = entry.glow * (1 - k);
-      entry.voidMesh.material.opacity = k;
-    }).then(() => {
-      entry.mesh.visible = false;
-      entry.outline.visible = false;
-    });
+    const from = entry.outline.material.opacity;
+    tween(1.0, (t) => {
+      entry.outline.material.opacity = from * (1 - ease.inOut(t));
+    }).then(() => (entry.outline.visible = false));
   }
 
   open(item) {
