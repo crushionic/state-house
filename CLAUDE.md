@@ -84,7 +84,7 @@ Rendering uses **three.js 0.180** and **Spark 2.4** (`@sparkjsdev/spark`), loade
 | `js/scenes/desk.js` | Wobbling glow-shader figure and the dialog |
 | `assets/cameras/README.md` | Owner-facing Blender export instructions and the expected file names |
 | `assets/splat.spz` | Opening splat (state house facade), about 23.6 MB |
-| `favicon.ico`, `assets/icons/` | Favicon: gold state house dome (owner's 48 px `state-house-favicon.png`), also as `favicon.ico` (16/32/48) and a 180 px Apple touch icon. Links in `index.html` carry `?v=2`; bump it whenever the icon changes so browsers drop their cached copy. Keep spaces out of asset file names |
+| `favicon.ico`, `assets/icons/` | Favicon: gold state house dome on a transparent background (owner's 48 px `state-house-favicon.png`), also as `favicon.ico` (16/32/48) and a 180 px Apple touch icon (on white, since iOS turns transparency black). Links in `index.html` carry `?v=3`; bump it whenever the icon changes so browsers drop their cached copy. Keep spaces out of asset file names |
 
 ## Camera tracks (Blender → site)
 
