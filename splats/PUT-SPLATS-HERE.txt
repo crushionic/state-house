@@ -1,0 +1,2 @@
+splats/zones/  the State House, split into zones (made by tools/split-splat.mjs from statehousepart1.spz)
+splats/catalog-card.spz  add your team's card scan here when it exists (a stand-in card is shown until then)

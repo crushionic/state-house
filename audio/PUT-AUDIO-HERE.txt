@@ -1,0 +1,4 @@
+Put the sound files here, named as in SOUND.sounds in js/config.js
+(e.g. door-creak.mp3, chatter.mp3, library-room-tone.mp3).
+Any that are missing are skipped, so add them as they're made.
+mp3 or m4a work in every browser; ogg doesn't play in Safari.

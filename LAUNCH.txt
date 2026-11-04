@@ -1,0 +1,21 @@
+To hold forth a lively experiment: how to launch
+
+Try it on your computer
+  1. Open a terminal in this folder.
+  2. Run:   python3 -m http.server 8000
+  3. Open:  http://localhost:8000/          (the walk, ending in the library)
+            http://localhost:8000/book.html (the book page)
+  Double-clicking index.html will NOT work: browsers block the splat files that way.
+
+Put it online
+  Upload this whole folder, as is, to any static host (GitHub Pages, Netlify, etc.).
+  No build step. index.html is the front page.
+  It needs an internet connection: three.js and Spark load from CDNs, fonts from Google Fonts.
+
+Not included (on purpose)
+  splats/catalog-card.spz  your team's card scan; a stand-in card shows until you add it.
+
+Authoring
+  Add ?dev to the address (e.g. http://localhost:8000/?dev) for the camera tools.
+  In ?dev, type  site.jumpTo(1)  in the browser console to jump to the library.
+  Full details: README.md

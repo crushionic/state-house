@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Book</title>
+<meta name="description" content="An open book from the State House library, recalled.">
+<!-- this page runs the same engine as index.html with its own settings -->
+<meta name="site-config" content="js/config-book.js">
+
+<link rel="preload" href="fonts/HALTimezone-Mono.woff" as="font" type="font/woff" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+
+<!-- Spark 2.4.0 or newer is needed to read SPZ v4 files like book.spz -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+    "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.4.0/spark.module.js"
+  }
+}
+</script>
+<script type="module" src="js/main.js"></script>
+</head>
+
+<body>
+<!-- the 3D view (fixed behind everything) -->
+<div id="stage" aria-hidden="true"></div>
+
+<!-- The page itself never scrolls: js/scroll.js turns wheel / touch / keys into forward movement. -->
+
+<!-- Text layer. Empty for now: the interaction is still being planned.
+     To add text later, put <section class="chapter" data-from="0.2" data-to="0.3" data-pos="left">…</section>
+     inside <main> (see README.md, "Adding text later"). -->
+<main id="story"></main>
+
+<!-- markers pinned to 3D points (from HOTSPOTS in config.js) -->
+<div id="hotspots"></div>
+
+<!-- the note card a hotspot opens (no hotspots yet) -->
+<aside id="note" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="note-title">
+  <div class="note-inner">
+    <div class="note-call"></div>
+    <h3 class="note-title" id="note-title"></h3>
+    <div class="note-body"></div>
+    <button class="note-close" type="button" aria-label="Close note">&times;</button>
+    <div class="cc-hole" aria-hidden="true"></div>
+  </div>
+</aside>
+
+<!-- small persistent UI -->
+<div id="loading"><span>recalling&hellip;</span></div>
+
+<noscript><p class="noscript">This memory needs JavaScript and WebGL to be recalled.</p></noscript>
+</body>
+</html>
